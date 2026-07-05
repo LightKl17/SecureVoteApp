@@ -13,7 +13,8 @@ db_config = {
     'database': os.environ.get('DB_NAME', 'postgres'), 
     'user': os.environ.get('DB_USER', 'user'),
     'password': os.environ.get('DB_PASSWORD'), 
-    'sslmode': 'require'    
+    'sslmode': 'require',
+    'connect_timeout': 10
 }
 
 def get_db_connection():
@@ -110,11 +111,11 @@ def api_blockchain():
         # 1. Fetch Candidates and vote counts
         cursor.execute("""
             SELECT 
-                c["id_candidato"], c["nombre"], c["partido"], c["hash"],
-                COUNT(v["id_voto"]) as votos
+                c."id_candidato", c."nombre", c."partido", c."hash",
+                COUNT(v."id_voto") as votos
             FROM "public"."candidatos" c
-            LEFT JOIN "public"."votos_blockchain" v ON c["id_candidato"] = v["id_candidato"]
-            GROUP BY c["id_candidato"], c["nombre"], c["partido"], c["hash"]
+            LEFT JOIN "public"."votos_blockchain" v ON c."id_candidato" = v."id_candidato"
+            GROUP BY c."id_candidato", c."nombre", c."partido", c."hash"
             ORDER BY votos DESC;
         """)
         candidates_votes = cursor.fetchall()
@@ -122,11 +123,11 @@ def api_blockchain():
         # 2. Fetch Blockchain ledger
         cursor.execute("""
             SELECT 
-                v["id_voto"], c["nombre"] as candidato_nombre, c["partido"] as candidato_partido,
-                v["hash_voto"], v["hash_anterior"], v["timestamp"]
+                v."id_voto", c."nombre" as candidato_nombre, c."partido" as candidato_partido,
+                v."hash_voto", v."hash_anterior", v."timestamp"
             FROM "public"."votos_blockchain" v
-            JOIN "public"."candidatos" c ON v["id_candidato"] = c["id_candidato"]
-            ORDER BY v["id_voto"] ASC;
+            JOIN "public"."candidatos" c ON v."id_candidato" = c."id_candidato"
+            ORDER BY v."id_voto" ASC;
         """)
         blockchain_ledger = cursor.fetchall()
         
