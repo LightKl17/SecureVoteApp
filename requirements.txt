@@ -74,11 +74,11 @@ soxr==0.5.0.post1
 SQLAlchemy==2.0.51
 sympy==1.14.0
 threadpoolctl==3.6.0
-tokenizers==0.13.3
+tokenizers
 torch==2.7.1
 tortoise-tts @ git+https://github.com/neonbjb/tortoise-tts.git@8a2563ecabe93c4fb626f876dd0c52c966edef2f
 tqdm==4.67.1
-transformers==4.31.0
+transformers
 typeguard==4.4.4
 typing_extensions==4.14.1
 tzdata==2026.2
