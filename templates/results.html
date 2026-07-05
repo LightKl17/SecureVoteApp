@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="results-page-layout fade-in" onload="loadResultsData()">
+    <!-- Page Header -->
+    <section class="hero-section text-center">
+        <span class="hero-badge">Monitoreo de Integridad</span>
+        <h1 class="hero-title">Dashboard Electoral & <span class="gradient-text">Blockchain Ledger</span></h1>
+        <p class="hero-description">
+            Monitoreo en tiempo real del escrutinio de votos, integridad criptográfica de la cadena de bloques y bitácora de auditoría inmutable de SecureVote.
+        </p>
+    </section>
+
+    <!-- Elections Statistics Counters -->
+    <section class="stats-grid">
+        <div class="glass-card stat-card" id="card-stat-registered">
+            <div class="stat-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Votantes Registrados</span>
+                <span class="stat-value" id="stat-registered-count">-</span>
+            </div>
+        </div>
+
+        <div class="glass-card stat-card" id="card-stat-voted">
+            <div class="stat-icon-wrapper secondary-color">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Votos Emitidos</span>
+                <span class="stat-value" id="stat-voted-count">-</span>
+            </div>
+        </div>
+
+        <div class="glass-card stat-card" id="card-stat-participation">
+            <div class="stat-icon-wrapper accent-color">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Tasa de Participación</span>
+                <span class="stat-value" id="stat-participation-rate">-%</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Scrutiny Results and Integrity Verification Header -->
+    <section class="results-dashboard-grid">
+        <!-- Results Column (Vote Counts) -->
+        <div class="glass-card main-dashboard-card" id="vote-count-card">
+            <div class="card-header border-bottom">
+                <h3 class="card-title font-syne">Escrutinio Oficial</h3>
+                <p class="card-subtitle">Distribución y recuento de votos en tiempo real.</p>
+            </div>
+            <div class="card-body">
+                <!-- Custom Interactive Bar Chart -->
+                <div class="chart-container" id="bar-chart-container">
+                    <!-- Bars are injected dynamically by main.js -->
+                    <div class="chart-loading">
+                        <div class="loader-spinner">
+                            <svg viewBox="0 0 50 50">
+                                <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                            </svg>
+                        </div>
+                        <p>Cargando escrutinio oficial...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ledger Integrity Banner -->
+        <div class="glass-card main-dashboard-card" id="blockchain-validator-card">
+            <div class="card-header border-bottom flex-between">
+                <div>
+                    <h3 class="card-title font-syne">Verificador Criptográfico</h3>
+                    <p class="card-subtitle">Validación matemática del encadenamiento.</p>
+                </div>
+                <button class="btn-secondary btn-sm" onclick="runLedgerValidation()" id="btn-validate-blockchain">
+                    Verificar Cadena
+                </button>
+            </div>
+            <div class="card-body text-center flex-column flex-center py-4">
+                <div class="validator-seal-container" id="validator-seal">
+                    <div class="pulse-ring"></div>
+                    <div class="seal-icon-box">
+                        <svg class="seal-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                    </div>
+                </div>
+                <h4 class="validator-title" id="validator-status-text">Cadena de Bloques Lista</h4>
+                <p class="validator-desc" id="validator-status-desc">Pulsa en "Verificar Cadena" para auditar criptográficamente cada bloque y su hash de enlace anterior.</p>
+                <div class="validator-metrics hidden" id="validator-metrics-box">
+                    <span class="badge badge-success" id="validation-blocks-count">0 Bloques Verificados</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Blockchain Explorer -->
+    <section class="blockchain-explorer-section">
+        <div class="section-header-box">
+            <h2 class="section-title font-syne">Explorador de la Blockchain</h2>
+            <p class="section-subtitle">Visualiza la inmutabilidad de cada voto enlazado. Cada bloque está anclado a la firma del anterior.</p>
+        </div>
+
+        <div class="blockchain-horizontal-scroll" id="blockchain-chain-container">
+            <!-- Blockchain blocks are dynamically injected here by main.js -->
+            <div class="blockchain-loading">
+                <div class="loader-spinner">
+                    <svg viewBox="0 0 50 50">
+                        <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                    </svg>
+                </div>
+                <p>Consultando bloques del ledger inmutable...</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Audit Logs Section -->
+    <section class="audit-logs-section">
+        <div class="glass-card main-dashboard-card" id="audit-log-card">
+            <div class="card-header border-bottom flex-between">
+                <div>
+                    <h3 class="card-title font-syne">Bitácora de Auditoría</h3>
+                    <p class="card-subtitle">Registros generados por la base de datos MySQL.</p>
+                </div>
+                <span class="badge font-mono" id="audit-log-badge">0 Registros</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="audit-table-wrapper">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th class="col-id">ID Log</th>
+                                <th class="col-event">Acción Registrada</th>
+                                <th class="col-date">Fecha y Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-log-table-body">
+                            <!-- Injected dynamically by main.js -->
+                            <tr>
+                                <td colspan="3" class="text-center py-4">Cargando bitácora de auditoría...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Detailed Block Inspection Modal -->
+<div class="modal-overlay hidden" id="block-modal">
+    <div class="glass-card modal-card block-details-card animate-zoom">
+        <div class="modal-status-icon block-icon-container">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="20" rx="4" ry="4"/>
+                <path d="M9 12l2 2 4-4"/>
+            </svg>
+        </div>
+        <h3 class="modal-title font-syne" id="block-modal-title">Bloque de Voto #--</h3>
+        
+        <div class="block-modal-body">
+            <div class="block-details-grid">
+                <div class="block-detail-item">
+                    <span class="detail-label">Candidato Elegido:</span>
+                    <strong class="detail-val" id="block-det-candidate">--</strong>
+                </div>
+                <div class="block-detail-item">
+                    <span class="detail-label">Partido Político:</span>
+                    <strong class="detail-val text-accent" id="block-det-party">--</strong>
+                </div>
+                <div class="block-detail-item">
+                    <span class="detail-label">Estampilla de Tiempo:</span>
+                    <span class="detail-val" id="block-det-time">--</span>
+                </div>
+            </div>
+            
+            <div class="block-hashes-box">
+                <div class="hash-field">
+                    <span class="detail-label">Firma de este Bloque (Hash Voto):</span>
+                    <div class="hash-code-wrapper">
+                        <code class="hash-code font-mono" id="block-det-hash-actual">--</code>
+                    </div>
+                </div>
+                
+                <div class="hash-field">
+                    <span class="detail-label">Enlace al Bloque Anterior (Hash Anterior):</span>
+                    <div class="hash-code-wrapper">
+                        <code class="hash-code font-mono" id="block-det-hash-prev">--</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="validator-banner-badge" id="block-det-status-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Criptográficamente Enlazado</span>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-primary" onclick="closeBlockModal()">Cerrar Auditoría</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

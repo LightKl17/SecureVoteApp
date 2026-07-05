@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="voting-page-layout fade-in">
+    <!-- Intro Banner -->
+    <section class="hero-section">
+        <span class="hero-badge">Criptografía Activa</span>
+        <h1 class="hero-title">
+            Tu Voto, Tu Voz. <br>
+            Asegurado con <span class="gradient-text">Blockchain</span>.
+        </h1>
+        <p class="hero-description">
+            SecureVote es una plataforma de votación democrática digital inmutable. Cada voto se firma criptográficamente con SHA-256 y se concatena a un libro contable distribuido en tiempo real en nuestra base de datos.
+        </p>
+    </section>
+
+    <!-- Main Voting Section -->
+    <section class="voting-section">
+        <div class="glass-card voting-card">
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-tag">Proceso Electoral Activo</span>
+                    <h2 class="card-title" id="election-title">
+                        {% if election %}
+                            {{ election.nombre }}
+                        {% else %}
+                            Elección General Activa
+                        {% endif %}
+                    </h2>
+                    <p class="card-subtitle">Fecha del evento: <strong>{{ election.fecha if election else '01 de Junio de 2026' }}</strong></p>
+                </div>
+                <div class="security-lock">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </div>
+            </div>
+
+            <form id="voting-form" class="voting-form" onsubmit="submitVote(event)">
+                <!-- Candidates Grid -->
+                <div class="form-group">
+                    <label class="form-label font-syne">1. Selecciona tu Candidato</label>
+                    <p class="form-hint">Haz clic en la tarjeta del candidato de tu preferencia para elegirlo.</p>
+                    
+                    <div class="candidates-grid" id="candidates-container">
+                        {% if candidates %}
+                            {% for candidate in candidates %}
+                            <div class="candidate-card" onclick="selectCandidate(this, '{{ candidate.nombre }}')" id="candidate-{{ candidate.id_candidato }}">
+                                <div class="candidate-visual">
+                                    <!-- A premium dynamic avatar/icon based on the first letter of their name -->
+                                    <div class="candidate-avatar">
+                                        <span>{{ candidate.nombre[0] }}</span>
+                                    </div>
+                                    <div class="party-badge">{{ candidate.partido }}</div>
+                                </div>
+                                <div class="candidate-info">
+                                    <h3 class="candidate-name">{{ candidate.nombre }}</h3>
+                                    <p class="candidate-party-text">Representante del {{ candidate.partido }}</p>
+                                </div>
+                                <div class="candidate-selector-dot">
+                                    <span class="inner-dot"></span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="no-data-card">
+                                <p>No hay candidatos disponibles en este momento.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <!-- Hidden field to store selected candidate -->
+                    <input type="hidden" name="candidato" id="selected-candidate-input" required>
+                </div>
+
+                <!-- DNI Input & Submit -->
+                <div class="form-group dni-group">
+                    <label for="dni-input" class="form-label font-syne">2. Identificación del Elector (DNI)</label>
+                    <p class="form-hint">Ingresa tu número de DNI registrado. Será anonimizado automáticamente mediante hash SHA-256 antes de guardarse.</p>
+                    
+                    <div class="dni-input-wrapper">
+                        <div class="dni-icon-box">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="dni-input" 
+                            name="dni" 
+                            placeholder="Ej. 12345678" 
+                            maxlength="10" 
+                            pattern="\d+" 
+                            required
+                            autocomplete="off"
+                            class="dni-input"
+                            oninput="validateDniInput(this)"
+                        >
+                        <span class="input-focus-line"></span>
+                    </div>
+                    <div id="dni-validation-message" class="input-validation-msg"></div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit" id="btn-votar">
+                    <span class="btn-text">Emitir Voto Seguro</span>
+                    <span class="btn-glow"></span>
+                    <!-- Loader spinner -->
+                    <div class="loader-spinner hidden" id="btn-loader">
+                        <svg viewBox="0 0 50 50">
+                            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                        </svg>
+                    </div>
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Side info panels -->
+    <section class="info-grid container">
+        <div class="glass-card info-card">
+            <div class="info-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#blue-cyan-grad)" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <defs>
+                        <linearGradient id="blue-cyan-grad" x1="0" y1="0" x2="24" y2="24">
+                            <stop stop-color="#3b82f6"/>
+                            <stop offset="1" stop-color="#06b6d4"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h3 class="info-card-title">Anonimato Garantizado</h3>
+            <p class="info-card-text">
+                Tu DNI nunca se almacena en texto plano. La base de datos solo almacena su firma unidireccional SHA-256, imposibilitando revertir el hash para identificar tu identidad física.
+            </p>
+        </div>
+        
+        <div class="glass-card info-card">
+            <div class="info-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#purple-grad)" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    <defs>
+                        <linearGradient id="purple-grad" x1="0" y1="0" x2="24" y2="24">
+                            <stop stop-color="#a855f7"/>
+                            <stop offset="1" stop-color="#ec4899"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h3 class="info-card-title">Respaldo de Encadenamiento</h3>
+            <p class="info-card-text">
+                Cada voto contiene la huella digital (hash) del voto anterior. Esto genera un bloque de datos entrelazado donde es matemáticamente imposible alterar o insertar votos sin romper la integridad del libro.
+            </p>
+        </div>
+    </section>
+</div>
+
+<!-- Beautiful Alert Modal Container (Toasts & Overlays) -->
+<div class="modal-overlay hidden" id="result-modal">
+    <div class="glass-card modal-card animate-zoom">
+        <div class="modal-status-icon" id="modal-icon-container">
+            <!-- SVG will be dynamically injected here by main.js -->
+        </div>
+        <h3 class="modal-title font-syne" id="modal-title-text">Estado del Voto</h3>
+        <p class="modal-message" id="modal-msg-text">Tu voto está siendo procesado criptográficamente...</p>
+        <div class="modal-details hidden" id="modal-details-box">
+            <span class="detail-label">Firma Criptográfica Generada (SHA-256):</span>
+            <code class="detail-hash" id="modal-vote-hash">fd296eaa5324c58750bebe...</code>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-primary" onclick="closeModalAndRedirect()" id="modal-btn-action">Aceptar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
