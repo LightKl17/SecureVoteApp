@@ -12,7 +12,7 @@ db_config = {
     'port': int(os.environ.get('DB_PORT', 5432)),
     'database': os.environ.get('DB_NAME', 'postgres'), 
     'user': os.environ.get('DB_USER', 'user'),
-    'password': os.environ.get('DB_PASSWORD', 'SecureVote2026*'), 
+    'password': os.environ.get('DB_PASSWORD'), 
     'sslmode': 'require'    
 }
 
