@@ -6,7 +6,8 @@ local (localhost:3306). El proyecto fue migrado a PostgreSQL (Azure Database
 for PostgreSQL) para poder desplegarlo en la nube, así que este script ahora
 usa psycopg2 y lee la configuración de conexión desde las mismas variables
 de entorno que usa app.py, para apuntar siempre a la misma base de datos
-que usa la aplicación en producción.
+que usa la aplicación en producción (o a una base local si se configuran
+las variables de entorno para ello).
 """
 import os
 import hashlib
@@ -57,18 +58,18 @@ def main():
                 # Reiniciamos el estado de voto para poder volver a probar
                 if res[1]:
                     cursor.execute(
-                        'UPDATE "public"."votantes" SET "ha_votado" = FALSE '
+                        'UPDATE "public"."votantes" SET "ha_votado" = 0 '
                         'WHERE "hash_dni" = %s;',
                         (h_dni,),
                     )
-                    print(f"-> Reset ha_votado to FALSE for DNI: {dni} for fresh testing!")
+                    print(f"-> Reset ha_votado to 0 for DNI: {dni} for fresh testing!")
             else:
                 cursor.execute(
                     'INSERT INTO "public"."votantes" ("hash_dni", "ha_votado") '
-                    'VALUES (%s, FALSE);',
+                    'VALUES (%s, 0);',
                     (h_dni,),
                 )
-                print(f"Inserted Voter DNI: {dni} (Hash: {h_dni}) with ha_votado = FALSE")
+                print(f"Inserted Voter DNI: {dni} (Hash: {h_dni}) with ha_votado = 0")
 
         conn.commit()
         print("\nSetup of test voters completed successfully!")
