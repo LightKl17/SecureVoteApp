@@ -2,7 +2,7 @@
 Pruebas de integridad de SecureVote.
 
 MIGRADO: la versión original usaba mysql.connector + SHA2() de MySQL contra
-una base local. El proyecto fue migrado a PostgreSQL, este script
+una base local. El proyecto fue migrado a PostgreSQL, así que este script
 ahora usa psycopg2, calcula el hash del DNI en Python con hashlib (igual
 que app.py) y lee la configuración de conexión desde las mismas variables
 de entorno que la aplicación en producción.
@@ -29,6 +29,7 @@ def hash_dni(dni):
 def error_text(e):
     """Extrae el mensaje de error de forma legible (psycopg2 lo trae en .pgerror)."""
     msg = e.pgerror if getattr(e, 'pgerror', None) else str(e)
+    # Nos quedamos solo con la línea "ERROR: ..." sin el CONTEXT/DETAIL extra
     if "CONTEXT:" in msg:
         msg = msg.split("CONTEXT:")[0]
     return msg.strip()
@@ -47,7 +48,7 @@ def run_tests():
         conn.autocommit = False
         cursor = conn.cursor()
 
-        #CASO 1: Votante No Registrado (DNI 00000000)
+        # --- CASO 1: Votante No Registrado (DNI 00000000) ---
         print("\nPrueba 1: Votante no registrado (DNI 00000000)...")
         try:
             cursor.execute(
@@ -64,7 +65,7 @@ def run_tests():
             else:
                 print(f"[FAIL] ERROR: Se capturó un error inesperado: '{msg}'")
 
-        #CASO 2: Votante que ya votó (DNI 12345678)
+        # --- CASO 2: Votante que ya votó (DNI 12345678) ---
         print("\nPrueba 2: Doble Voto con DNI que ya votó (DNI 12345678)...")
         try:
             cursor.execute(
@@ -81,7 +82,7 @@ def run_tests():
             else:
                 print(f"[FAIL] ERROR: Se capturó un error inesperado: '{msg}'")
 
-        # CASO 3: Voto Exitoso con DNI elegible (DNI 77777777)
+        # --- CASO 3: Voto Exitoso con DNI elegible (DNI 77777777) ---
         print("\nPrueba 3: Registrar voto elegible por primera vez (DNI 77777777)...")
         try:
             cursor.execute(
@@ -91,7 +92,7 @@ def run_tests():
             res = cursor.fetchone()
             if res and res[0]:
                 cursor.execute(
-                    'UPDATE "public"."votantes" SET "ha_votado" = FALSE WHERE "hash_dni" = %s;',
+                    'UPDATE "public"."votantes" SET "ha_votado" = 0 WHERE "hash_dni" = %s;',
                     (hash_dni("77777777"),),
                 )
                 conn.commit()
@@ -107,7 +108,7 @@ def run_tests():
             conn.rollback()
             print(f"[FAIL] ERROR: No se pudo registrar el voto: '{error_text(e)}'")
 
-        # CASO 4: Intento de Doble Voto con DNI 77777777
+        # --- CASO 4: Intento de Doble Voto con DNI 77777777 ---
         print("\nPrueba 4: Intentar doble voto con el DNI recién usado (DNI 77777777)...")
         try:
             cursor.execute(
@@ -124,7 +125,7 @@ def run_tests():
             else:
                 print(f"[FAIL] ERROR: Se capturó un error inesperado: '{msg}'")
 
-        #  Verificación de encadenamiento de la Blockchain
+        # --- CASO 5: Verificación de encadenamiento de la Blockchain ---
         print("\nPrueba 5: Verificando integridad del encadenamiento del ledger...")
         cursor.execute(
             'SELECT "id_voto", "id_candidato", "hash_voto", "hash_anterior" '
