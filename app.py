@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import hashlib
-import os  
+import os  # Importamos la librería de sistema para leer variables de entorno
 
 app = Flask(__name__)
 
@@ -27,11 +27,11 @@ def index():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # election info
+        # Fetch election info - Con esquema explícito
         cursor.execute('SELECT * FROM "public"."elecciones" ORDER BY "id_eleccion" DESC LIMIT 1;')
         election = cursor.fetchone()
         
-        # candidatos
+        # Fetch candidates
         if election:
             cursor.execute('SELECT * FROM "public"."candidatos" WHERE "id_eleccion" = %s;', (election['id_eleccion'],))
         else:
@@ -71,17 +71,20 @@ def api_votar():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Calculamos el hash SHA256 de forma local con Python
+        # 1. Calculamos el hash SHA256 de forma local con Python
         dni_limpio = dni.strip()
         hash_dni = hashlib.sha256(dni_limpio.encode('utf-8')).hexdigest()
         
         candidato_limpio = str(candidato).strip()
 
-        # Llamamos al procedimiento pasando parámetros limpios en texto
+        # 2. Llamamos al procedimiento pasando parámetros limpios en texto
         query = 'CALL "public"."sp_registrar_voto"(%s, %s);'
         cursor.execute(query, (hash_dni, candidato_limpio))
 
-        # Recuperamos el hash REAL que el procedimiento generó e insertó,
+        # 3. Recuperamos el hash REAL que el procedimiento generó e insertó,
+        # dentro de la MISMA transacción (todavía no hacemos commit).
+        # Antes el frontend calculaba un hash "de mentira" en JavaScript que
+        # NO coincidía con el hash_voto real guardado en la base de datos.
         cursor.execute('''
             SELECT v."hash_voto"
             FROM "public"."votos_blockchain" v
@@ -123,7 +126,7 @@ def api_blockchain():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        #Candidatos and vote counts
+        # 1. Fetch Candidates and vote counts
         cursor.execute("""
             SELECT 
                 c."id_candidato", c."nombre", c."partido", c."hash",
@@ -135,7 +138,7 @@ def api_blockchain():
         """)
         candidates_votes = cursor.fetchall()
         
-        #Blockchain ledger
+        # 2. Fetch Blockchain ledger
         cursor.execute("""
             SELECT 
                 v."id_voto", c."nombre" as candidato_nombre, c."partido" as candidato_partido,
@@ -146,24 +149,27 @@ def api_blockchain():
         """)
         blockchain_ledger = cursor.fetchall()
         
-        #Auditoria log
+        # 3. Fetch Audit log
         cursor.execute('SELECT "id_log", "accion", "fecha" FROM "public"."auditoria" ORDER BY "id_log" DESC LIMIT 50;')
         audit_logs = cursor.fetchall()
         
-        #total votantes
+        # 4. Count total registered voters
         cursor.execute('SELECT COUNT(*) as total FROM "public"."votantes";')
         res_total = cursor.fetchone()
         total_voters = res_total['total'] if res_total else 0
         
-        # Conteo de votantes 
-        cursor.execute('SELECT COUNT(*) as voted FROM "public"."votantes" WHERE "ha_votado" = TRUE;')
+        # 5. Count voters who have voted
+        # NOTA: la columna "ha_votado" en la base de datos real quedó como
+        # INTEGER (0/1), no como BOOLEAN puro (a pesar de que el diagrama MER
+        # del informe dice BOOLEAN). Por eso se compara con el entero 1.
+        cursor.execute('SELECT COUNT(*) as voted FROM "public"."votantes" WHERE "ha_votado" = 1;')
         res_voted = cursor.fetchone()
         voted_voters = res_voted['voted'] if res_voted else 0
         
         cursor.close()
         conn.close()
         
-        # timestamps 
+        # Format timestamps as strings for JSON serialization
         for block in blockchain_ledger:
             if block['timestamp']:
                 block['timestamp'] = block['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
@@ -190,5 +196,6 @@ def api_blockchain():
         return jsonify({'success': False, 'message': f'Error al consultar datos: {str(e)}'}), 500
 
 if __name__ == '__main__':
+    # Azure usa la variable PORT dinámicamente para enlazar el contenedor web
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
