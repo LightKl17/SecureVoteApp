@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import hashlib
-import os  # Importamos la librería de sistema para leer variables de entorno
+import os  
 
 app = Flask(__name__)
 
@@ -27,11 +27,11 @@ def index():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Fetch election info - Con esquema explícito
+        # election info
         cursor.execute('SELECT * FROM "public"."elecciones" ORDER BY "id_eleccion" DESC LIMIT 1;')
         election = cursor.fetchone()
         
-        # Fetch candidates
+        # candidatos
         if election:
             cursor.execute('SELECT * FROM "public"."candidatos" WHERE "id_eleccion" = %s;', (election['id_eleccion'],))
         else:
@@ -71,21 +71,36 @@ def api_votar():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Calculamos el hash SHA256 de forma local con Python
+        # Calculamos el hash SHA256 de forma local con Python
         dni_limpio = dni.strip()
         hash_dni = hashlib.sha256(dni_limpio.encode('utf-8')).hexdigest()
         
-        # 2. Llamamos al procedimiento pasando parámetros limpios en texto
+        candidato_limpio = str(candidato).strip()
+
+        # Llamamos al procedimiento pasando parámetros limpios en texto
         query = 'CALL "public"."sp_registrar_voto"(%s, %s);'
-        cursor.execute(query, (hash_dni, str(candidato).strip()))
-        
+        cursor.execute(query, (hash_dni, candidato_limpio))
+
+        # Recuperamos el hash REAL que el procedimiento generó e insertó,
+        cursor.execute('''
+            SELECT v."hash_voto"
+            FROM "public"."votos_blockchain" v
+            JOIN "public"."candidatos" c ON v."id_candidato" = c."id_candidato"
+            WHERE c."nombre" = %s
+            ORDER BY v."id_voto" DESC
+            LIMIT 1;
+        ''', (candidato_limpio,))
+        hash_row = cursor.fetchone()
+        real_hash = hash_row[0] if hash_row else None
+
         conn.commit()
         cursor.close()
         conn.close()
         
         return jsonify({
             'success': True, 
-            'message': '¡Voto registrado y firmado exitosamente en la Blockchain!'
+            'message': '¡Voto registrado y firmado exitosamente en la Blockchain!',
+            'hash': real_hash
         })
         
     except psycopg2.Error as e:
@@ -108,7 +123,7 @@ def api_blockchain():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 1. Fetch Candidates and vote counts
+        #Candidatos and vote counts
         cursor.execute("""
             SELECT 
                 c."id_candidato", c."nombre", c."partido", c."hash",
@@ -120,7 +135,7 @@ def api_blockchain():
         """)
         candidates_votes = cursor.fetchall()
         
-        # 2. Fetch Blockchain ledger
+        #Blockchain ledger
         cursor.execute("""
             SELECT 
                 v."id_voto", c."nombre" as candidato_nombre, c."partido" as candidato_partido,
@@ -131,24 +146,24 @@ def api_blockchain():
         """)
         blockchain_ledger = cursor.fetchall()
         
-        # 3. Fetch Audit log
+        #Auditoria log
         cursor.execute('SELECT "id_log", "accion", "fecha" FROM "public"."auditoria" ORDER BY "id_log" DESC LIMIT 50;')
         audit_logs = cursor.fetchall()
         
-        # 4. Count total registered voters
+        #total votantes
         cursor.execute('SELECT COUNT(*) as total FROM "public"."votantes";')
         res_total = cursor.fetchone()
         total_voters = res_total['total'] if res_total else 0
         
-        # 5. Count voters who have voted
-        cursor.execute('SELECT COUNT(*) as voted FROM "public"."votantes" WHERE "ha_votado" = 1;')
+        # Conteo de votantes 
+        cursor.execute('SELECT COUNT(*) as voted FROM "public"."votantes" WHERE "ha_votado" = TRUE;')
         res_voted = cursor.fetchone()
         voted_voters = res_voted['voted'] if res_voted else 0
         
         cursor.close()
         conn.close()
         
-        # Format timestamps as strings for JSON serialization
+        # timestamps 
         for block in blockchain_ledger:
             if block['timestamp']:
                 block['timestamp'] = block['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
@@ -175,6 +190,5 @@ def api_blockchain():
         return jsonify({'success': False, 'message': f'Error al consultar datos: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    # Azure usa la variable PORT dinámicamente para enlazar el contenedor web
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
