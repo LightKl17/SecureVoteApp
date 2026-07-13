@@ -89,6 +89,10 @@ def api_votar():
     conn = None
     try:
         conn = get_db_connection()
+        # El procedimiento sp_registrar_voto ahora hace COMMIT internamente
+        # (para conservar el log de auditoría de intentos bloqueados aunque
+        # el voto se rechace), así que debe llamarse en modo autocommit.
+        conn.autocommit = True
         cursor = conn.cursor()
         
         # 1. Calculamos el hash del DNI con HMAC-SHA256 (no SHA-256 simple,
@@ -102,10 +106,9 @@ def api_votar():
         query = 'CALL "public"."sp_registrar_voto"(%s, %s);'
         cursor.execute(query, (hash_dni, candidato_limpio))
 
-        # 3. Recuperamos el hash REAL que el procedimiento generó e insertó,
-        # dentro de la MISMA transacción (todavía no hacemos commit).
-        # Antes el frontend calculaba un hash "de mentira" en JavaScript que
-        # NO coincidía con el hash_voto real guardado en la base de datos.
+        # 3. Recuperamos el hash REAL que el procedimiento generó e insertó.
+        # Como la conexión está en autocommit, el CALL de arriba ya quedó
+        # confirmado en la base de datos antes de llegar aquí.
         cursor.execute('''
             SELECT v."hash_voto"
             FROM "public"."votos_blockchain" v
@@ -117,7 +120,6 @@ def api_votar():
         hash_row = cursor.fetchone()
         real_hash = hash_row[0] if hash_row else None
 
-        conn.commit()
         cursor.close()
         conn.close()
         
