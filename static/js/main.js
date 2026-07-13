@@ -145,7 +145,13 @@ async function loadResultsData() {
         document.getElementById("stat-participation-rate").textContent = data.stats.participation_rate + "%";
         
         // 2. Render Custom Interactive Chart
-        renderChart(data.candidates, data.stats.total_voted);
+        // NOTA: el denominador de cada porcentaje debe ser la suma real de
+        // votos registrados en la blockchain (bloques), no data.stats.total_voted
+        // (que cuenta ha_votado=1 en la tabla votantes). Ambos números pueden
+        // desincronizarse si se reinicia el estado de un votante para pruebas
+        // después de que ya generó un bloque de voto real.
+        const totalVotosBlockchain = data.candidates.reduce((sum, c) => sum + c.votos, 0);
+        renderChart(data.candidates, totalVotosBlockchain);
         
         // 3. Render Blockchain Visual Ledger
         renderBlockchain(data.blockchain);
@@ -250,7 +256,7 @@ function renderBlockchain(blockchain) {
                 </div>
             </div>
             <div class="block-card-footer">
-                <span>MySQL DB</span>
+                <span>PostgreSQL DB</span>
                 <span>${block.timestamp ? block.timestamp.substring(11, 19) : ''}</span>
             </div>
         `;
@@ -366,7 +372,7 @@ async function runLedgerValidation() {
         seal.className = "validator-seal-container valid";
         statusText.textContent = "Estructura Válida";
         statusText.style.color = "var(--color-success)";
-        statusDesc.textContent = "¡Verificación Exitosa! La cadena inmutable MySQL está al 100% íntegra. Las firmas criptográficas encadenan de forma secuencial perfecta.";
+        statusDesc.textContent = "¡Verificación Exitosa! La cadena inmutable está al 100% íntegra. Las firmas criptográficas encadenan de forma secuencial perfecta.";
     } else {
         seal.className = "validator-seal-container error";
         statusText.textContent = "Cadena Corrupta";
