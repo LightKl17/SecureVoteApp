@@ -11,6 +11,7 @@ las variables de entorno para ello).
 """
 import os
 import hashlib
+import hmac
 import psycopg2
 
 db_config = {
@@ -23,15 +24,29 @@ db_config = {
     'connect_timeout': 10,
 }
 
+# IMPORTANTE: debe ser exactamente la misma clave (DNI_PEPPER) que usa
+# app.py en el servidor, o los hashes generados aquí no coincidirán con
+# los que la aplicación web calcula al recibir un voto.
+DNI_PEPPER = os.environ.get('DNI_PEPPER')
+
 
 def get_hash(dni):
-    return hashlib.sha256(dni.encode('utf-8')).hexdigest()
+    return hmac.new(
+        DNI_PEPPER.encode('utf-8'),
+        dni.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
 
 
 def main():
     if not db_config['password']:
         print("ERROR: la variable de entorno DB_PASSWORD no está definida. "
               "Configúrala antes de ejecutar este script (igual que en app.py).")
+        return
+
+    if not DNI_PEPPER:
+        print("ERROR: la variable de entorno DNI_PEPPER no está definida. "
+              "Debe ser la misma clave que usa app.py en el servidor.")
         return
 
     test_voters = [

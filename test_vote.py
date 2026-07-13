@@ -9,6 +9,7 @@ de entorno que la aplicación en producción.
 """
 import os
 import hashlib
+import hmac
 import psycopg2
 
 db_config = {
@@ -21,9 +22,16 @@ db_config = {
     'connect_timeout': 10,
 }
 
+# Debe ser la misma clave que usa app.py en el servidor.
+DNI_PEPPER = os.environ.get('DNI_PEPPER')
+
 
 def hash_dni(dni):
-    return hashlib.sha256(dni.encode('utf-8')).hexdigest()
+    return hmac.new(
+        DNI_PEPPER.encode('utf-8'),
+        dni.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
 
 
 def error_text(e):
@@ -38,6 +46,11 @@ def error_text(e):
 def run_tests():
     if not db_config['password']:
         print("ERROR: la variable de entorno DB_PASSWORD no está definida.")
+        return
+
+    if not DNI_PEPPER:
+        print("ERROR: la variable de entorno DNI_PEPPER no está definida. "
+              "Debe ser la misma clave que usa app.py en el servidor.")
         return
 
     print("=== INICIANDO PRUEBAS DE INTEGRIDAD DE SECUREVOTE ===")

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import hashlib
+import hmac
 import os  # Importamos la librería de sistema para leer variables de entorno
 
 app = Flask(__name__)
@@ -19,6 +20,25 @@ db_config = {
 
 def get_db_connection():
     return psycopg2.connect(**db_config)
+
+# Clave secreta ("pepper") usada solo para hashear el DNI. Con un DNI de
+# 8 dígitos, un SHA-256 simple es reversible por fuerza bruta (solo hay
+# 100 millones de combinaciones posibles) -> usamos HMAC-SHA256 con esta
+# clave, que solo vive en el servidor y nunca se guarda en la base de datos,
+# para que un atacante que solo tenga acceso a la BD no pueda revertir el
+# hash_dni al DNI original probando combinaciones.
+DNI_PEPPER = os.environ.get('DNI_PEPPER')
+
+def hashear_dni(dni_limpio):
+    if not DNI_PEPPER:
+        raise RuntimeError(
+            "La variable de entorno DNI_PEPPER no está configurada en el servidor."
+        )
+    return hmac.new(
+        DNI_PEPPER.encode('utf-8'),
+        dni_limpio.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
 
 @app.route('/')
 def index():
@@ -71,9 +91,10 @@ def api_votar():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Calculamos el hash SHA256 de forma local con Python
+        # 1. Calculamos el hash del DNI con HMAC-SHA256 (no SHA-256 simple,
+        # ver nota junto a hashear_dni() sobre por qué)
         dni_limpio = dni.strip()
-        hash_dni = hashlib.sha256(dni_limpio.encode('utf-8')).hexdigest()
+        hash_dni = hashear_dni(dni_limpio)
         
         candidato_limpio = str(candidato).strip()
 
