@@ -130,18 +130,36 @@ def api_votar():
         })
         
     except psycopg2.Error as e:
-        if conn:
-            conn.rollback()
-            conn.close()
         error_msg = e.pgerror if hasattr(e, 'pgerror') else str(e)
         if "CONTEXT:" in error_msg:
             error_msg = error_msg.split("CONTEXT:")[0]
-        return jsonify({'success': False, 'message': error_msg.strip()}), 400
-    except Exception as e:
-        if conn:
-            conn.close()
-        return jsonify({'success': False, 'message': f'Error interno del servidor: {str(e)}'}), 500
+            
+        # --- NUEVA LOGICA DE AUDITORIA FORENSE DESDE EL BACKEND ---
+        # Si la excepción arrojada por PostgreSQL contiene el mensaje de doble voto,
+        # abrimos una conexión rápida e independiente para persistir el log de alerta.
+        if "ya ejercio su voto" in error_msg.lower():
+            try:
+                conn_audit = get_db_connection()
+                conn_audit.autocommit = True
+                cursor_audit = conn_audit.cursor()
+                # Extraemos de forma segura los primeros 8 caracteres del DNI ofuscado
+                mascara_hash = hash_dni[:8] if 'hash_dni' in locals() else "Desconocido"
+                
+                cursor_audit.execute(
+                    'INSERT INTO "public"."auditoria" ("accion", "fecha") VALUES (%s, NOW());',
+                    (f"ALERTA DE SEGURIDAD: Intento de doble voto detectado para el elector hash: {mascara_hash}...",)
+                )
+                cursor_audit.close()
+                conn_audit.close()
+            except Exception as audit_error:
+                print(f"Error escribiendo en la bitácora de auditoría: {audit_error}")
+        # ---------------------------------------------------------
 
+        if conn:
+            conn.rollback()
+            conn.close()
+        return jsonify({'success': False, 'message': error_msg.strip()}), 400
+        
 @app.route('/api/blockchain', methods=['GET'])
 def api_blockchain():
     conn = None
